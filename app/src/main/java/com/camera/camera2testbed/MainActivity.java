@@ -39,6 +39,7 @@ public class MainActivity extends AppCompatActivity {
     private static final String TAG = "Camera2TestBed";
     private TextureView mTextureView;
     private BasicCamera2 mBasicCamera2;
+    private static final String CAMERA_ID = "0";
     @RequiresApi(api = Build.VERSION_CODES.M)
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -63,7 +64,7 @@ public class MainActivity extends AppCompatActivity {
             @RequiresApi(api = Build.VERSION_CODES.M)
             @Override
             public void onSurfaceTextureAvailable(@NonNull SurfaceTexture surface, int width, int height) {
-                mBasicCamera2.initCamera("0");
+                mBasicCamera2.initCamera(CAMERA_ID);
             }
 
             @Override

@@ -10,7 +10,6 @@ public class YuvUtil {
     public static final int YUV420SP = 1;
     public static final int NV21 = 2;
     public static final int NV12 = 3;
-    public static final int SE1000 = 4;
 
     public static byte[] getBytesFromImageAsType(Image image, int type, boolean black_white) {
         if (null == image) {
@@ -132,38 +131,12 @@ public class YuvUtil {
         }
         return yuvBytes;
     }
-    public static void Yuv420ToNV12(byte[] yuv420y, byte[] yuv420u, byte[] yuv420v, int width, int height, byte[] nv12) {
-        int uvBase = width * height;
-        System.arraycopy(yuv420y,0, nv12, 0, yuv420y.length);
-        int offset = uvBase;
-        for(int i = 0;i < uvBase / 4;i++){
-            nv12[offset++] = yuv420u[i];
-            nv12[offset++] = yuv420v[i];
-        }
-    }
-    public static void Yuv420ToNV12(byte[] yuv420y, byte[] yuv420u, int width, int height, byte[] nv12) {
+    public static void YUV420ToNV12(byte[] yuv420y, byte[] yuv420u, byte[] nv12) {
         System.arraycopy(yuv420y,0, nv12, 0, yuv420y.length);
         int offset = yuv420y.length;
-        int u_bytes = yuv420u.length / 2;   // u分量字节数
-        int v_offset = u_bytes;
-        for(int i = 0;i < u_bytes;i++) {
+        int bytes = yuv420u.length;   // uv分量字节数
+        for(int i = 0;i < bytes;i++) {
             nv12[offset++] = yuv420u[i];
-            nv12[offset++] = yuv420u[v_offset++];
         }
-    }
-    public static int getImageType(final Image img) {
-        int ySize = img.getPlanes()[0].getBuffer().remaining();
-        int uSize = img.getPlanes()[1].getBuffer().remaining();
-        int vSize = img.getPlanes()[2].getBuffer().remaining();
-        if ((1024000 == ySize) && (511999 == uSize) && (511999 == vSize)) {
-            return SE1000;
-        }
-        double ratioYU = 1.0 * ySize / uSize;
-        double ratioYV = 1.0 * ySize / vSize;
-        // Y:U:V = 4:1:1
-        if ((uSize == vSize) && (Math.abs(ratioYU - 0.25) <= 0.0001) && (Math.abs(ratioYV - 0.25) <= 0.0001)) {
-            return YUV420P;
-        }
-        return NoneType;
     }
 }

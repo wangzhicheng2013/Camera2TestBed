@@ -45,13 +45,12 @@ public class BasicCamera2 {
     private int mPreviewFormat = -1;
     private Size mPreviewSize = null;
     private String mCameraId;
-
+    private Context mContext;
     private CameraManager mCameraManager = null;
     private CameraDevice mCameraDevice = null;
     private TextureView mTextureView;
     private ImageReader mPreviewReader = null;
 
-    private Context mContext;
     // background thread to process image
     private HandlerThread mBackgroundThread;
     private Handler mBackgroundHandler;
@@ -64,6 +63,11 @@ public class BasicCamera2 {
     private int mFrameCount = 0;
     private long mProcessTime = 0;
     private static final int MAX_FRAME_COUNT = 100;
+    private static final int OPPO_DEVICE = 0;
+    private static final int CAR_DEVICE = 1;
+    private int device_type = OPPO_DEVICE;
+    private static int IMAGE_CACHE_CAPACITY = 3;
+    private static final int PREVIEW_FORMAT = ImageFormat.YUV_420_888;
 
     public BasicCamera2(Context context, TextureView textureView) {
         mContext = context;
@@ -114,13 +118,13 @@ public class BasicCamera2 {
         return true;
     }
     private boolean initImageReader() {
-        Log.d(TAG, "init camera ok3!:" + mPreviewSize.getWidth() + " 1:" + mPreviewSize.getHeight() + " ff:" + mPreviewFormat);
-        mPreviewReader = ImageReader.newInstance(mPreviewSize.getWidth(), mPreviewSize.getHeight(), mPreviewFormat,1);
+        Log.d(TAG, "camera preview width:" + mPreviewSize.getWidth() + " height:" + mPreviewSize.getHeight() + " format:" + mPreviewFormat);
+        mPreviewReader = ImageReader.newInstance(mPreviewSize.getWidth(), mPreviewSize.getHeight(), mPreviewFormat,IMAGE_CACHE_CAPACITY);
         if (null == mPreviewReader) {
             Log.e(TAG, "ImageReader new instance failed...!");
             return false;
         }
-        Log.d(TAG, "init camera ok4!");
+        Log.d(TAG, "init image reader ok!");
         mPreviewReader.setOnImageAvailableListener(mPreviewImageAvailableListener, mBackgroundHandler);
         return true;
     }
@@ -175,9 +179,9 @@ public class BasicCamera2 {
         }
         for (int format : formats) {
             switch (format) {
-                case ImageFormat.YUV_420_888:
+                case PREVIEW_FORMAT:
                     mPreviewFormat = format;
-                    Log.d(TAG, "camera preview format is YUV420_888!");
+                    Log.d(TAG, "camera preview format is:" + PREVIEW_FORMAT);
                     break;
             }
         }
@@ -225,7 +229,7 @@ public class BasicCamera2 {
                 }
             });
         } else {
-            Log.d(TAG, "未找到合适的预览尺寸");
+            Log.d(TAG, "No suitable preview size found!");
             return sizes[0];
         }
     }
@@ -250,7 +254,9 @@ public class BasicCamera2 {
                 boolean ret = getBytesForImage(img);
                 img.close();
                 if ((save_pic_count++ <= save_pic_sum) && (true == ret)) {
-                    writeYUVToSdCard("NV12");
+                    if (ImageFormat.YUV_420_888 == PREVIEW_FORMAT) {
+                        writeYUVToSdCard("NV12");
+                    }
                 }
                 long endTimeMillis = System.currentTimeMillis();
                 ++mFrameCount;
@@ -265,30 +271,22 @@ public class BasicCamera2 {
         });
     }
     private boolean getBytesForImage(final Image img) {
-        int imageType = YuvUtil.getImageType(img);
-        if (YuvUtil.NoneType == imageType) {
-            Log.e(TAG, "can not get correct yuv format from image!");
-            return false;
-        }
-        byte byteY[] = new byte[img.getPlanes()[0].getBuffer().remaining()];
-        byte byteU[] = new byte[img.getPlanes()[1].getBuffer().remaining()];
-        byte byteV[] = null;
-        img.getPlanes()[0].getBuffer().get(byteY, 0, img.getPlanes()[0].getBuffer().remaining());
-        img.getPlanes()[1].getBuffer().get(byteU, 0, img.getPlanes()[1].getBuffer().remaining());
-        switch (imageType) {
-            case YuvUtil.SE1000:
-                YuvUtil.Yuv420ToNV12(byteY, byteU, img.getWidth(), img.getHeight(), mByteNv12);
-                break;
-            case YuvUtil.YUV420P:
-                byteV = new byte[img.getPlanes()[2].getBuffer().remaining()];
-                img.getPlanes()[2].getBuffer().get(byteV, 0, img.getPlanes()[2].getBuffer().remaining());
-                YuvUtil.Yuv420ToNV12(byteY, byteU, byteV, img.getWidth(), img.getHeight(), mByteNv12);
-                break;
-            default:
-                break;
+        if (ImageFormat.YUV_420_888 == PREVIEW_FORMAT) {
+            switch (device_type) {
+                case OPPO_DEVICE:
+                    mByteNv12 = YuvUtil.getBytesFromImageAsType(img, YuvUtil.YUV420SP, false);
+                    break;
+                case CAR_DEVICE:
+                    byte byteY[] = new byte[img.getPlanes()[0].getBuffer().remaining()];
+                    byte byteU[] = new byte[img.getPlanes()[1].getBuffer().remaining()];
+                    img.getPlanes()[0].getBuffer().get(byteY, 0, img.getPlanes()[0].getBuffer().remaining());
+                    img.getPlanes()[1].getBuffer().get(byteU, 0, img.getPlanes()[1].getBuffer().remaining());
+                    YuvUtil.YUV420ToNV12(byteY, byteU, mByteNv12);
+                    break;
+            }
         }
         Log.d(TAG, "NV12 bytes:" + mByteNv12.length);
-        return true;
+        return mByteNv12.length > 0;
     }
     // when image is ready send it to the background thread to process
     private ImageReader.OnImageAvailableListener mPreviewImageAvailableListener = new ImageReader.OnImageAvailableListener() {
@@ -377,7 +375,9 @@ public class BasicCamera2 {
     private void writeYUVToSdCard(String type) {
         String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
         timeStamp += "_" + System.currentTimeMillis();
-        String fileName = "/sdcard/" + type + "_" + timeStamp + "_" + mPreviewReader.getWidth() + "x" + mPreviewReader.getHeight() + "." + type;
+        String path = mContext.getExternalFilesDir(null).getPath();
+        Log.d(TAG, "store pic path: " + path);
+        String fileName = path + "/" + type + "_" + timeStamp + "_" + mPreviewReader.getWidth() + "x" + mPreviewReader.getHeight() + "." + type;
         Log.i(TAG, "file:" + fileName + " begin write!");
         FileOutputStream output = null;
         try {
