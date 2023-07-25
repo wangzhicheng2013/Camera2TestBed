@@ -26,20 +26,31 @@ import android.os.Bundle;
 import android.util.Log;
 import android.util.Size;
 import android.view.Surface;
+import android.view.View;
 import android.view.TextureView;
+import android.widget.Button;
+import android.widget.ImageView;
 import android.widget.Toast;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Date;
+import java.text.SimpleDateFormat;
+import android.os.Environment;
+import java.util.concurrent.ConcurrentLinkedDeque;
 
 public class MainActivity extends AppCompatActivity {
     private static final int REQUEST_CAMERA_PERMISSION = 1;
     private static final String TAG = "Camera2TestBed";
     private TextureView mTextureView;
-    private BasicCamera2 mBasicCamera2;
-    private static final String CAMERA_ID = "0";
+    private ImageView mQuitButton;
+    private ImageView mDumpImageButton;
+    private DmsCameraThread mDmsCameraThread;
+    private DmsProcessThread mDmsProcessThread;
+    public static ConcurrentLinkedDeque<byte[]>mQueue = new ConcurrentLinkedDeque<byte[]>();
+    public static final int QUEUE_SIZE = 3;
     @RequiresApi(api = Build.VERSION_CODES.M)
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -49,13 +60,41 @@ public class MainActivity extends AppCompatActivity {
         if (false == checkPermissions()) {
             return;
         }
-        initCamera2();
+        initDmsThread();
     }
     private void initView() {
         mTextureView = (TextureView) findViewById(R.id.tv_camera);
+        mQuitButton = findViewById(R.id.quit_btn);
+        mDumpImageButton = findViewById(R.id.dump_image_btn);
+        mQuitButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            // jump to ID4 Demo Car MainActivity
+            public void onClick(View view) {
+                Log.d(TAG, "main activity exit!");
+                finish();
+                System.exit(0);
+            }
+        });
+        mDumpImageButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
+                String outputImagePath = Environment.getExternalStorageDirectory().getAbsolutePath() + "/" + timeStamp + "_" + DmsCameraThread.DMS_CAMERA_WIDTH + "x" + DmsCameraThread.DMS_CAMERA_HEIGHT + "." + DmsCameraThread.DMS_CAMERA_TYPE;
+                Toast.makeText(view.getContext(), "Dump文件是:" + outputImagePath, Toast.LENGTH_SHORT).show();
+                byte[] data = mQueue.poll();
+                if (data != null) {
+                    Log.d(TAG, "get data:" + data.length);
+                    PublicTools.dumpImage(outputImagePath, data);
+                }
+            }
+        });
     }
-    private void initCamera2() {
-        mBasicCamera2 = new BasicCamera2(this, mTextureView);
+    private void initDmsThread() {
+        mDmsCameraThread = new DmsCameraThread(this, mTextureView);
+        mDmsProcessThread = new DmsProcessThread();
+        if (true == mDmsProcessThread.init()) {
+            mDmsProcessThread.start();
+        }
     }
     @Override
     protected void onResume() {
@@ -64,7 +103,9 @@ public class MainActivity extends AppCompatActivity {
             @RequiresApi(api = Build.VERSION_CODES.M)
             @Override
             public void onSurfaceTextureAvailable(@NonNull SurfaceTexture surface, int width, int height) {
-                mBasicCamera2.initCamera(CAMERA_ID);
+                if (true == mDmsCameraThread.initDmsCamera()) {
+                    mDmsCameraThread.start();
+                }
             }
 
             @Override
@@ -104,7 +145,6 @@ public class MainActivity extends AppCompatActivity {
             if (grantResults.length != 1 || grantResults[0] != PackageManager.PERMISSION_GRANTED) {
                 Toast.makeText(this, "请授予相机权限！", Toast.LENGTH_SHORT).show();
             } else {
-                initCamera2();
             }
         } else {
             super.onRequestPermissionsResult(requestCode, permissions, grantResults);

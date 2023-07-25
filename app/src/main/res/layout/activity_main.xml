@@ -10,5 +10,24 @@
         android:id="@+id/tv_camera"
         android:layout_width="match_parent"
         android:layout_height="match_parent" />
-
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+        <ImageView
+            android:id="@+id/quit_btn"
+            android:layout_width="50dp"
+            android:layout_height="50dp"
+            android:layout_marginLeft="15dp"
+            android:layout_marginTop="15dp"
+            android:foregroundGravity="left"
+            app:srcCompat="@mipmap/quit_pic" />
+        <ImageView
+            android:id="@+id/dump_image_btn"
+            android:layout_marginTop="15dp"
+            android:layout_marginRight="15dp"
+            android:layout_width="50dp"
+            android:layout_height="50dp"
+            android:layout_alignParentRight="true"
+            app:srcCompat="@mipmap/dump_active" />
+    </RelativeLayout>
 </androidx.constraintlayout.widget.ConstraintLayout>
