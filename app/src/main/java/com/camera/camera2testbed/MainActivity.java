@@ -43,7 +43,7 @@ import java.util.concurrent.ConcurrentLinkedDeque;
 
 public class MainActivity extends AppCompatActivity {
     private static final int REQUEST_CAMERA_PERMISSION = 1;
-    private static final String TAG = "Camera2TestBed";
+    private static final String TAG = "MainActivity";
     private TextureView mTextureView;
     private ImageView mQuitButton;
     private ImageView mDumpImageButton;
@@ -80,6 +80,7 @@ public class MainActivity extends AppCompatActivity {
             public void onClick(View view) {
                 String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
                 String outputImagePath = Environment.getExternalStorageDirectory().getAbsolutePath() + "/" + timeStamp + "_" + DmsCameraThread.DMS_CAMERA_WIDTH + "x" + DmsCameraThread.DMS_CAMERA_HEIGHT + "." + DmsCameraThread.DMS_CAMERA_TYPE;
+                // get pictures from /mnt/runtime/default/emulated/10/
                 Toast.makeText(view.getContext(), "Dump文件是:" + outputImagePath, Toast.LENGTH_SHORT).show();
                 byte[] data = mQueue.poll();
                 if (data != null) {
